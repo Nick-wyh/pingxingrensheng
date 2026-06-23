@@ -1,0 +1,1102 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>你的故事采集</title>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@300;400;500;600;700;900&family=Noto+Sans+SC:wght@200;300;400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --card-bg: rgba(30,28,52,0.55);
+    --card-border: rgba(180,170,200,0.18);
+    --text: #d8d4e8;
+    --text-soft: #b8b2cf;
+    --text-muted: #8a84a8;
+    --accent: #c4a882;
+    --accent-soft: #b8a0c8;
+    --input-bg: rgba(20,18,38,0.45);
+    --input-border: rgba(180,170,200,0.2);
+    --input-focus: #c4a882;
+    --white: #edeaf4;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: 'Noto Serif SC', 'Songti SC', 'STSong', serif;
+    background: linear-gradient(170deg, #1b1932 0%, #252344 20%, #2d2c54 40%, #35365f 60%, #3d4470 80%, #4a557e 100%);
+    color: var(--text);
+    min-height: 100vh;
+    -webkit-font-smoothing: antialiased;
+    overflow-x: hidden;
+    background-attachment: fixed;
+  }
+
+  /* ===== 动态背景 Canvas ===== */
+  #particles {
+    position: fixed;
+    inset: 0;
+    z-index: 0;
+    pointer-events: none;
+  }
+
+  /* ===== 遮罩入口 ===== */
+  .gate {
+    position: fixed;
+    inset: 0;
+    z-index: 100;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    padding: 32px;
+    transition: opacity 1.2s ease, visibility 1.2s ease;
+    background: radial-gradient(ellipse at center, rgba(30,26,54,0.95) 0%, #141122 100%);
+  }
+
+  .gate::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background:
+      radial-gradient(ellipse at 25% 30%, rgba(180,160,200,0.04) 0%, transparent 50%),
+      radial-gradient(ellipse at 70% 65%, rgba(196,168,130,0.05) 0%, transparent 50%),
+      radial-gradient(ellipse at 50% 50%, rgba(150,140,180,0.03) 0%, transparent 70%);
+    pointer-events: none;
+  }
+
+  .gate.hidden {
+    opacity: 0;
+    visibility: hidden;
+    pointer-events: none;
+  }
+
+  .gate-inner {
+    position: relative;
+    z-index: 1;
+  }
+
+  .gate-ornament {
+    font-size: 13px;
+    letter-spacing: 14px;
+    color: rgba(196,168,130,0.35);
+    margin-bottom: 56px;
+    animation: gatePulse 5s ease-in-out infinite;
+  }
+
+  @keyframes gatePulse {
+    0%, 100% { opacity: 0.3; }
+    50% { opacity: 0.55; }
+  }
+
+  .gate-title {
+    font-size: 30px;
+    font-weight: 500;
+    color: #d8d4e8;
+    letter-spacing: 10px;
+    margin-bottom: 16px;
+  }
+
+  .gate-line {
+    width: 50px;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, rgba(196,168,130,0.5), transparent);
+    margin: 22px auto 26px;
+  }
+
+  .gate-subtitle {
+    font-size: 14px;
+    color: rgba(200,188,210,0.6);
+    letter-spacing: 4px;
+    margin-bottom: 4px;
+  }
+
+  .gate-author {
+    font-size: 11px;
+    color: rgba(200,188,210,0.25);
+    letter-spacing: 3px;
+    margin-bottom: 64px;
+  }
+
+  .gate-msg {
+    font-size: 15px;
+    color: rgba(200,190,215,0.45);
+    letter-spacing: 2px;
+    margin-bottom: 44px;
+    line-height: 2.4;
+    max-width: 320px;
+    font-weight: 300;
+  }
+
+  .gate-btn {
+    background: none;
+    border: 1px solid rgba(196,168,130,0.3);
+    color: rgba(196,168,130,0.8);
+    padding: 15px 48px;
+    font-family: 'Noto Serif SC', serif;
+    font-size: 14px;
+    letter-spacing: 6px;
+    cursor: pointer;
+    transition: all 0.6s ease;
+    position: relative;
+  }
+
+  .gate-btn:hover {
+    border-color: rgba(196,168,130,0.6);
+    color: #e8dcc8;
+    box-shadow: 0 0 48px rgba(196,168,130,0.08);
+  }
+
+  /* ===== 毛玻璃卡片容器 ===== */
+  .container {
+    max-width: 580px;
+    margin: 0 auto;
+    padding: 16px 20px 80px;
+    position: relative;
+    z-index: 1;
+    opacity: 0;
+    transform: translateY(16px);
+    transition: opacity 1.2s ease, transform 1.2s ease;
+  }
+
+  body.entered .container {
+    opacity: 1;
+    transform: translateY(0);
+  }
+
+  /* 毛玻璃卡片 */
+  .glass-card {
+    background: var(--card-bg);
+    border: 1px solid var(--card-border);
+    border-radius: 2px;
+    padding: 44px 36px 48px;
+    backdrop-filter: blur(28px);
+    -webkit-backdrop-filter: blur(28px);
+    box-shadow:
+      0 8px 40px rgba(0,0,0,0.2),
+      0 1px 3px rgba(0,0,0,0.12),
+      inset 0 1px 0 rgba(255,255,255,0.03);
+    position: relative;
+  }
+
+  /* ===== 进度条 ===== */
+  .progress-wrap {
+    margin-bottom: 40px;
+    text-align: center;
+  }
+
+  .progress-label {
+    font-family: 'Noto Sans SC', sans-serif;
+    font-size: 10px;
+    letter-spacing: 5px;
+    color: var(--text-muted);
+    margin-bottom: 14px;
+    font-weight: 300;
+  }
+
+  .progress-bar {
+    height: 1px;
+    background: rgba(180,170,200,0.15);
+    position: relative;
+    width: 100%;
+  }
+
+  .progress-fill {
+    height: 100%;
+    background: linear-gradient(90deg, rgba(196,168,130,0.5), var(--accent));
+    transition: width 0.6s ease;
+    width: 0%;
+  }
+
+  /* ===== 步骤区 ===== */
+  .step {
+    display: none;
+    animation: fadeStep 0.8s ease;
+  }
+
+  .step.active {
+    display: block;
+  }
+
+  @keyframes fadeStep {
+    from { opacity: 0; transform: translateY(10px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+
+  .step-section-title {
+    font-family: 'Noto Sans SC', sans-serif;
+    font-size: 10px;
+    letter-spacing: 8px;
+    color: var(--accent);
+    margin-bottom: 28px;
+    font-weight: 300;
+  }
+
+  .step-heading {
+    font-size: 22px;
+    font-weight: 500;
+    letter-spacing: 3px;
+    margin-bottom: 12px;
+    line-height: 1.7;
+    color: var(--white);
+  }
+
+  .step-subtitle {
+    font-size: 14px;
+    color: var(--text-soft);
+    letter-spacing: 1px;
+    margin-bottom: 36px;
+    line-height: 2;
+    font-weight: 300;
+  }
+
+  .step-divider {
+    width: 36px;
+    height: 1px;
+    background: linear-gradient(90deg, var(--accent), transparent);
+    margin-bottom: 40px;
+    opacity: 0.5;
+  }
+
+  /* ===== 表单字段 ===== */
+  .field {
+    margin-bottom: 36px;
+  }
+
+  .field-label {
+    display: block;
+    font-size: 13px;
+    font-weight: 500;
+    letter-spacing: 2px;
+    margin-bottom: 10px;
+    color: var(--text);
+  }
+
+  .field-hint {
+    font-size: 12px;
+    color: var(--text-muted);
+    letter-spacing: 1px;
+    margin-bottom: 10px;
+    line-height: 1.8;
+    font-weight: 300;
+  }
+
+  .field-input {
+    width: 100%;
+    background: var(--input-bg);
+    border: none;
+    border-bottom: 1px solid var(--input-border);
+    padding: 14px 0;
+    font-family: 'Noto Serif SC', serif;
+    font-size: 15px;
+    color: var(--white);
+    letter-spacing: 1px;
+    line-height: 1.8;
+    transition: border-color 0.4s ease;
+    resize: vertical;
+    outline: none;
+    backdrop-filter: blur(6px);
+    -webkit-backdrop-filter: blur(6px);
+  }
+
+  .field-input:focus {
+    border-bottom-color: var(--input-focus);
+  }
+
+  .field-input::placeholder {
+    color: rgba(180,170,200,0.3);
+    font-style: italic;
+  }
+
+  textarea.field-input {
+    min-height: 80px;
+  }
+
+  /* ===== 单选 ===== */
+  .radio-group {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .radio-option {
+    display: flex;
+    align-items: flex-start;
+    cursor: pointer;
+    padding: 18px 20px;
+    border: 1px solid rgba(180,170,200,0.18);
+    transition: all 0.4s ease;
+    background: rgba(20,18,38,0.3);
+    backdrop-filter: blur(4px);
+    -webkit-backdrop-filter: blur(4px);
+  }
+
+  .radio-option:hover {
+    border-color: rgba(196,168,130,0.35);
+    background: rgba(30,25,50,0.4);
+  }
+
+  .radio-option.selected {
+    border-color: rgba(196,168,130,0.5);
+    background: rgba(196,168,130,0.07);
+    box-shadow: 0 0 0 4px rgba(196,168,130,0.03);
+  }
+
+  .radio-option input { display: none; }
+
+  .radio-dot {
+    width: 16px; height: 16px;
+    border: 2px solid rgba(180,170,200,0.3);
+    border-radius: 50%;
+    flex-shrink: 0;
+    margin-top: 2px;
+    margin-right: 14px;
+    position: relative;
+    transition: border-color 0.4s ease;
+  }
+
+  .radio-option.selected .radio-dot {
+    border-color: var(--accent);
+  }
+
+  .radio-option.selected .radio-dot::after {
+    content: '';
+    position: absolute;
+    inset: 3px;
+    border-radius: 50%;
+    background: var(--accent);
+  }
+
+  .radio-label {
+    font-size: 14px;
+    letter-spacing: 1px;
+    line-height: 1.6;
+    color: var(--text);
+  }
+
+  .radio-desc {
+    font-size: 12px;
+    color: var(--text-muted);
+    letter-spacing: 0.5px;
+    margin-top: 3px;
+    font-weight: 300;
+  }
+
+  /* ===== 多选 ===== */
+  .check-group {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .check-option {
+    padding: 11px 22px;
+    border: 1px solid rgba(180,170,200,0.18);
+    font-size: 13px;
+    letter-spacing: 2px;
+    cursor: pointer;
+    transition: all 0.35s ease;
+    background: rgba(20,18,38,0.3);
+    backdrop-filter: blur(4px);
+    -webkit-backdrop-filter: blur(4px);
+    font-family: 'Noto Serif SC', serif;
+    color: var(--text-soft);
+  }
+
+  .check-option:hover {
+    border-color: rgba(196,168,130,0.35);
+  }
+
+  .check-option.checked {
+    border-color: rgba(196,168,130,0.5);
+    background: rgba(196,168,130,0.08);
+    color: var(--accent);
+  }
+
+  /* ===== 按钮 ===== */
+  .btn-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 52px;
+    gap: 16px;
+  }
+
+  .btn-back {
+    background: none;
+    border: none;
+    font-family: 'Noto Serif SC', serif;
+    font-size: 13px;
+    color: var(--text-muted);
+    letter-spacing: 2px;
+    cursor: pointer;
+    padding: 8px 0;
+    transition: color 0.3s;
+    font-weight: 300;
+  }
+
+  .btn-back:hover { color: var(--text-soft); }
+
+  .btn-next {
+    background: rgba(196,168,130,0.15);
+    border: 1px solid rgba(196,168,130,0.3);
+    color: var(--accent);
+    padding: 15px 38px;
+    font-family: 'Noto Serif SC', serif;
+    font-size: 14px;
+    letter-spacing: 4px;
+    cursor: pointer;
+    transition: all 0.4s ease;
+    backdrop-filter: blur(4px);
+    -webkit-backdrop-filter: blur(4px);
+  }
+
+  .btn-next:hover {
+    background: rgba(196,168,130,0.25);
+    border-color: rgba(196,168,130,0.5);
+    box-shadow: 0 4px 24px rgba(196,168,130,0.1);
+  }
+  .btn-next:disabled { opacity: 0.25; cursor: not-allowed; box-shadow: none; }
+
+  /* ===== 汇总页 ===== */
+  .summary-box {
+    background: rgba(20,18,38,0.55);
+    border: 1px solid rgba(180,170,200,0.15);
+    padding: 32px 28px;
+    margin-bottom: 20px;
+    line-height: 2.2;
+    font-size: 14px;
+    letter-spacing: 1px;
+    color: var(--text);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+  }
+
+  .copy-hint {
+    text-align: center;
+    font-size: 12px;
+    color: var(--text-muted);
+    letter-spacing: 1px;
+    margin-top: 20px;
+    font-weight: 300;
+  }
+
+  /* ===== 移动端 ===== */
+  @media (max-width: 480px) {
+    .gate-title { font-size: 24px; letter-spacing: 6px; }
+    .gate-msg { font-size: 14px; letter-spacing: 1px; }
+    .gate-btn { padding: 14px 36px; letter-spacing: 4px; }
+    .container { padding: 8px 12px 60px; }
+    .glass-card { padding: 32px 24px 36px; }
+    .step-heading { font-size: 19px; }
+  }
+</style>
+</head>
+<body>
+
+<!-- ==================== 动态平行时空背景 ==================== -->
+<canvas id="particles"></canvas>
+
+<!-- ==================== 遮罩入口 ==================== -->
+<div class="gate" id="gate">
+  <div class="gate-inner">
+    <div class="gate-ornament">◇</div>
+    <h1 class="gate-title">故事采集</h1>
+    <div class="gate-line"></div>
+    <p class="gate-subtitle">{{客户昵称}} 的平行人生</p>
+    <p class="gate-author">林白</p>
+    <p class="gate-msg">
+      这不是一张问卷。<br>
+      是一封邀请函。<br><br>
+      接下来，我会问你几个问题。<br>
+      关于你、关于一条你没走的路、<br>
+      关于那个平行时空里的你。
+    </p>
+    <button class="gate-btn" onclick="enterGate()">进　入</button>
+  </div>
+</div>
+
+<!-- ==================== 主内容：毛玻璃卡片 ==================== -->
+<div class="container" id="main">
+  <div class="glass-card">
+
+    <!-- 进度条 -->
+    <div class="progress-wrap">
+      <div class="progress-label" id="progressLabel">第 1 步 / 共 6 步</div>
+      <div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
+    </div>
+
+    <!-- ===== 步骤 1 ===== -->
+    <div class="step active" id="step1">
+      <div class="step-section-title">第一部 · 你是谁</div>
+      <h2 class="step-heading">先告诉我，<br>怎么称呼你。</h2>
+      <p class="step-subtitle">不需要真名。一个你喜欢的名字就好——我会用它做这本书的主角。</p>
+      <div class="step-divider"></div>
+
+      <div class="field">
+        <label class="field-label">你的昵称</label>
+        <input class="field-input" id="q1_nickname" placeholder="比如：小晚、阿树、Lily……">
+      </div>
+      <div class="field">
+        <label class="field-label">你的年龄（可以模糊）</label>
+        <input class="field-input" id="q1_age" placeholder="比如：二十多岁、三十出头……">
+      </div>
+      <div class="field">
+        <label class="field-label">你的性别</label>
+        <input class="field-input" id="q1_gender" placeholder="">
+      </div>
+
+      <div class="btn-row">
+        <span></span>
+        <button class="btn-next" onclick="nextStep(2)">继续</button>
+      </div>
+    </div>
+
+    <!-- ===== 步骤 2 ===== -->
+    <div class="step" id="step2">
+      <div class="step-section-title">第二部 · 那个岔路口</div>
+      <h2 class="step-heading">回到那一刻。</h2>
+      <p class="step-subtitle">你人生中的某个时刻，你做了一个选择。后来你无数次回想——「如果当时选了另一条路，会怎样？」<br><br>就是那个时刻。告诉我。</p>
+      <div class="step-divider"></div>
+
+      <div class="field">
+        <label class="field-label">那是什么时候？</label>
+        <span class="field-hint">比如：2018年夏天、大四那年、23岁那年</span>
+        <input class="field-input" id="q2_time" placeholder="">
+      </div>
+      <div class="field">
+        <label class="field-label">你面对的是什么选择？</label>
+        <span class="field-hint">比如：去深圳还是回老家、学画画还是学计算机、表白还是不表白</span>
+        <input class="field-input" id="q2_choice" placeholder="">
+      </div>
+      <div class="field">
+        <label class="field-label">你选了哪条路？</label>
+        <input class="field-input" id="q2_chosen" placeholder="">
+      </div>
+      <div class="field">
+        <label class="field-label">那条没选的路是什么？</label>
+        <input class="field-input" id="q2_unchosen" placeholder="">
+      </div>
+      <div class="field">
+        <label class="field-label">当时为什么没选它？</label>
+        <span class="field-hint">是什么让你犹豫了、退缩了、错过了？</span>
+        <textarea class="field-input" id="q2_why" placeholder="慢慢写，不急。"></textarea>
+      </div>
+
+      <div class="btn-row">
+        <button class="btn-back" onclick="prevStep(1)">← 上一页</button>
+        <button class="btn-next" onclick="nextStep(3)">继续</button>
+      </div>
+    </div>
+
+    <!-- ===== 步骤 3 ===== -->
+    <div class="step" id="step3">
+      <div class="step-section-title">第三部 · 平行世界的你</div>
+      <h2 class="step-heading">在平行时空里，<br>你选了那条路。</h2>
+      <p class="step-subtitle">那个世界的你，是什么样子？</p>
+      <div class="step-divider"></div>
+
+      <div class="field">
+        <label class="field-label">在那个世界，你多大？在哪个城市？做什么？</label>
+        <textarea class="field-input" id="q3_life" placeholder="随便描述一下那个版本的你"></textarea>
+      </div>
+      <div class="field">
+        <label class="field-label">那个世界的你，性格和现在有什么不同？</label>
+        <input class="field-input" id="q3_personality" placeholder="">
+      </div>
+      <div class="field">
+        <label class="field-label">有没有某个重要的人，在那个世界和你有交集？</label>
+        <span class="field-hint">模糊描述即可：比如「大学同学」「前同事」「暗恋过的人」——不需要真名</span>
+        <input class="field-input" id="q3_person" placeholder="">
+      </div>
+
+      <div class="btn-row">
+        <button class="btn-back" onclick="prevStep(2)">← 上一页</button>
+        <button class="btn-next" onclick="nextStep(4)">继续</button>
+      </div>
+    </div>
+
+    <!-- ===== 步骤 4 ===== -->
+    <div class="step" id="step4">
+      <div class="step-section-title">第四部 · 故事的颜色</div>
+      <h2 class="step-heading">你想要一个什么样的结局？</h2>
+      <p class="step-subtitle">不同的结局，通向完全不同的书。选一个你心里最接近的。</p>
+      <div class="step-divider"></div>
+
+      <label class="field-label">结局偏好</label>
+      <div class="radio-group" id="q4_ending">
+        <label class="radio-option" onclick="selectRadio(this, 'q4_ending')">
+          <input type="radio" name="ending" value="圆满型">
+          <span class="radio-dot"></span>
+          <div>
+            <div class="radio-label">圆满型</div>
+            <div class="radio-desc">平行时空里，你拥有了想要的一切。那个选择是对的，遗憾被弥补。</div>
+          </div>
+        </label>
+        <label class="radio-option" onclick="selectRadio(this, 'q4_ending')">
+          <input type="radio" name="ending" value="和解型">
+          <span class="radio-dot"></span>
+          <div>
+            <div class="radio-label">和解型</div>
+            <div class="radio-desc">平行时空里的你也没有一帆风顺。但走过之后，你和过去的自己和解了。</div>
+          </div>
+        </label>
+        <label class="radio-option" onclick="selectRadio(this, 'q4_ending')">
+          <input type="radio" name="ending" value="开放式">
+          <span class="radio-dot"></span>
+          <div>
+            <div class="radio-label">开放式</div>
+            <div class="radio-desc">不预设结局。由你来写，由我来读。</div>
+          </div>
+        </label>
+      </div>
+
+      <div style="margin-top:36px;">
+        <label class="field-label">故事基调（选 1-2 个）</label>
+        <div class="check-group" id="q4_tone">
+          <span class="check-option" onclick="toggleCheck(this)">温暖治愈</span>
+          <span class="check-option" onclick="toggleCheck(this)">克制深情</span>
+          <span class="check-option" onclick="toggleCheck(this)">文艺浪漫</span>
+          <span class="check-option" onclick="toggleCheck(this)">都市写实</span>
+          <span class="check-option" onclick="toggleCheck(this)">王家卫式</span>
+          <span class="check-option" onclick="toggleCheck(this)">少年感</span>
+          <span class="check-option" onclick="toggleCheck(this)">成熟释然</span>
+        </div>
+      </div>
+
+      <div class="btn-row">
+        <button class="btn-back" onclick="prevStep(3)">← 上一页</button>
+        <button class="btn-next" onclick="nextStep(5)">继续</button>
+      </div>
+    </div>
+
+    <!-- ===== 步骤 5 ===== -->
+    <div class="step" id="step5">
+      <div class="step-section-title">第五部 · 只有你知道的事</div>
+      <h2 class="step-heading">下面的问题，<br>让这本书是「你的」。</h2>
+      <p class="step-subtitle">没有这些细节，故事就只是故事。<br>有了它们，故事就是你。</p>
+      <div class="step-divider"></div>
+
+      <div class="field">
+        <label class="field-label">有没有一个地方，只有你和那段记忆有关？</label>
+        <span class="field-hint">大学后门的奶茶店、某个地铁站的出口、家乡的那座桥</span>
+        <input class="field-input" id="q5_place" placeholder="">
+      </div>
+      <div class="field">
+        <label class="field-label">有没有一句话，你一直想说，但一直没机会说的？</label>
+        <textarea class="field-input" id="q5_words" placeholder="那句话是什么？"></textarea>
+      </div>
+      <div class="field">
+        <label class="field-label">那个时刻，你还记得哪些细节？</label>
+        <span class="field-hint">那天下雨了吗？你穿了什么？在放什么歌？空气是什么温度的？</span>
+        <textarea class="field-input" id="q5_details" placeholder="任何你记得的，哪怕很小"></textarea>
+      </div>
+      <div class="field">
+        <label class="field-label">有没有一件物品和那个时刻有关？</label>
+        <span class="field-hint">一张车票、一个礼物、一本书、一个已经丢了的东西</span>
+        <input class="field-input" id="q5_object" placeholder="">
+      </div>
+      <div class="field">
+        <label class="field-label">还有什么想让我放进故事里的吗？</label>
+        <span class="field-hint">一个名字、一个场景、一个玩笑、一段对话——任何你想的</span>
+        <textarea class="field-input" id="q5_extra" placeholder=""></textarea>
+      </div>
+
+      <div class="btn-row">
+        <button class="btn-back" onclick="prevStep(4)">← 上一页</button>
+        <button class="btn-next" onclick="nextStep(6)">继续</button>
+      </div>
+    </div>
+
+    <!-- ===== 步骤 6 ===== -->
+    <div class="step" id="step6">
+      <div class="step-section-title">第六部 · 最后</div>
+      <h2 class="step-heading">最后一个问题。</h2>
+      <p class="step-subtitle">然后我就开始。</p>
+      <div class="step-divider"></div>
+
+      <div class="field">
+        <label class="field-label">如果平行时空里的你，给现在的你写一封信，第一句话是什么？</label>
+        <textarea class="field-input" id="q6_letter" placeholder=""></textarea>
+      </div>
+      <div class="field">
+        <label class="field-label">这本书的最后一页，你希望自己读完是什么心情？</label>
+        <input class="field-input" id="q6_feeling" placeholder="">
+      </div>
+      <div class="field">
+        <label class="field-label">还有什么想对我说的吗？</label>
+        <textarea class="field-input" id="q6_anything" placeholder=""></textarea>
+      </div>
+
+      <div class="btn-row">
+        <button class="btn-back" onclick="prevStep(5)">← 上一页</button>
+        <button class="btn-next" onclick="showSummary()">生 成 故 事 采 集</button>
+      </div>
+    </div>
+
+    <!-- ===== 汇总页 ===== -->
+    <div class="step" id="stepSummary">
+      <div class="step-section-title">✦ 你的故事采集完毕</div>
+      <h2 class="step-heading">下面是你要发给林白的内容。</h2>
+      <p class="step-subtitle">检查一遍。确认无误后，复制全部，发给他。</p>
+      <div class="step-divider"></div>
+
+      <div class="summary-box" id="summaryContent"></div>
+
+      <p class="copy-hint">👇 点击按钮，一键复制全部内容</p>
+
+      <div class="btn-row" style="justify-content:center;">
+        <button class="btn-next" onclick="copySummary()" id="btnCopy">📋 复制全部，发给林白</button>
+      </div>
+      <p class="copy-hint" id="copyDone" style="display:none;color:var(--accent);">✓ 已复制。现在去微信，粘贴发送给林白。</p>
+
+      <div class="btn-row" style="justify-content:center;margin-top:20px;">
+        <button class="btn-back" onclick="prevStep(6)">← 返回修改</button>
+      </div>
+    </div>
+
+  </div><!-- .glass-card end -->
+</div>
+
+<!-- ==================== 脚本 ==================== -->
+<script>
+  // ==========================================
+  //  平行时空动态背景 Canvas
+  //  - 深紫→浅蓝渐变背景
+  //  - 大量微光星点缓慢浮动
+  //  - 两组日常场景虚影，分别向左/右漂移
+  //  - 极淡慢速流星
+  //  - 所有速度极慢，不干扰阅读
+  // ==========================================
+  const canvas = document.getElementById('particles');
+  const ctx = canvas.getContext('2d');
+
+  function resize() {
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+  }
+  window.addEventListener('resize', resize);
+  resize();
+
+  // ---- 星点 ----
+  const STAR_COUNT = 120;
+  const stars = [];
+  for (let i = 0; i < STAR_COUNT; i++) {
+    stars.push({
+      x: Math.random() * canvas.width,
+      y: Math.random() * canvas.height,
+      r: Math.random() * 1.4 + 0.3,
+      baseAlpha: Math.random() * 0.5 + 0.15,
+      pulse: Math.random() * Math.PI * 2,
+      pulseSpeed: Math.random() * 0.006 + 0.003,
+      driftX: (Math.random() - 0.5) * 0.08,
+      driftY: (Math.random() - 0.5) * 0.06,
+    });
+  }
+
+  // ---- 场景虚影（两组，反向漂移） ----
+  function createSceneShadows(direction) {
+    const count = 5;
+    const shadows = [];
+    for (let i = 0; i < count; i++) {
+      shadows.push({
+        type: ['window', 'lamp', 'corner', 'arch', 'line'][Math.floor(Math.random() * 5)],
+        x: Math.random() * canvas.width,
+        y: Math.random() * canvas.height,
+        size: 30 + Math.random() * 80,
+        alpha: Math.random() * 0.04 + 0.015,
+        speedX: direction * (Math.random() * 0.15 + 0.06),
+        speedY: (Math.random() - 0.5) * 0.08,
+      });
+    }
+    return shadows;
+  }
+
+  const leftShadows  = createSceneShadows(-1);
+  const rightShadows = createSceneShadows(1);
+  const allShadows = [...leftShadows, ...rightShadows];
+
+  // ---- 流星 ----
+  const METEOR_MAX = 2;
+  let meteors = [];
+
+  function spawnMeteor() {
+    return {
+      x: Math.random() * canvas.width,
+      y: Math.random() * canvas.height * 0.5,
+      len: 40 + Math.random() * 80,
+      speed: 0.3 + Math.random() * 0.5,
+      angle: Math.PI / 6 + Math.random() * 0.2,
+      alpha: 0,
+      alphaTarget: Math.random() * 0.12 + 0.04,
+      life: 0,
+      maxLife: 300 + Math.random() * 400,
+      fading: false,
+    };
+  }
+
+  // ---- 绘制场景虚影 ----
+  function drawShadow(ctx, s) {
+    ctx.save();
+    ctx.globalAlpha = s.alpha;
+    ctx.strokeStyle = '#c8c0d8';
+    ctx.lineWidth = 1.2;
+    ctx.shadowColor = 'rgba(180,170,210,0.4)';
+    ctx.shadowBlur = 6;
+
+    const x = s.x, sz = s.size;
+
+    switch (s.type) {
+      case 'window':
+        ctx.strokeRect(x, s.y, sz, sz * 1.3);
+        ctx.beginPath();
+        ctx.moveTo(x + sz / 2, s.y);
+        ctx.lineTo(x + sz / 2, s.y + sz * 1.3);
+        ctx.moveTo(x, s.y + sz * 0.65);
+        ctx.lineTo(x + sz, s.y + sz * 0.65);
+        ctx.stroke();
+        break;
+      case 'lamp':
+        ctx.beginPath();
+        ctx.moveTo(x, s.y);
+        ctx.lineTo(x, s.y + sz);
+        ctx.moveTo(x - sz * 0.3, s.y);
+        ctx.lineTo(x + sz * 0.3, s.y);
+        ctx.arc(x, s.y - sz * 0.1, sz * 0.25, Math.PI, 0);
+        ctx.stroke();
+        break;
+      case 'corner':
+        ctx.beginPath();
+        ctx.moveTo(x, s.y);
+        ctx.lineTo(x, s.y + sz);
+        ctx.lineTo(x + sz, s.y + sz);
+        ctx.stroke();
+        break;
+      case 'arch':
+        ctx.beginPath();
+        ctx.moveTo(x, s.y + sz);
+        ctx.lineTo(x, s.y + sz * 0.5);
+        ctx.quadraticCurveTo(x, s.y - sz * 0.2, x + sz, s.y + sz * 0.5);
+        ctx.lineTo(x + sz, s.y + sz);
+        ctx.stroke();
+        break;
+      case 'line':
+        ctx.beginPath();
+        ctx.moveTo(x, s.y);
+        ctx.lineTo(x + sz * 1.2, s.y + sz * 0.3);
+        ctx.stroke();
+        break;
+    }
+
+    ctx.restore();
+  }
+
+  // ---- 主动画循环 ----
+  function animate() {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    // 星点
+    for (let s of stars) {
+      s.x += s.driftX;
+      s.y += s.driftY;
+      s.pulse += s.pulseSpeed;
+      if (s.x < -10) s.x = canvas.width + 10;
+      if (s.x > canvas.width + 10) s.x = -10;
+      if (s.y < -10) s.y = canvas.height + 10;
+      if (s.y > canvas.height + 10) s.y = -10;
+
+      const alpha = s.baseAlpha * (0.6 + 0.4 * Math.sin(s.pulse));
+      ctx.beginPath();
+      ctx.arc(s.x, s.y, s.r, 0, Math.PI * 2);
+      ctx.fillStyle = `rgba(210,200,225,${alpha})`;
+      ctx.shadowColor = `rgba(190,175,215,${alpha * 0.5})`;
+      ctx.shadowBlur = s.r * 1.8;
+      ctx.fill();
+    }
+    ctx.shadowBlur = 0;
+
+    // 场景虚影
+    for (let s of allShadows) {
+      s.x += s.speedX;
+      s.y += s.speedY;
+      if (s.x < -120) s.x = canvas.width + 120;
+      if (s.x > canvas.width + 120) s.x = -120;
+      if (s.y < -120) s.y = canvas.height + 120;
+      if (s.y > canvas.height + 120) s.y = -120;
+      drawShadow(ctx, s);
+    }
+
+    // 流星
+    if (meteors.length < METEOR_MAX && Math.random() < 0.003) {
+      meteors.push(spawnMeteor());
+    }
+
+    for (let i = meteors.length - 1; i >= 0; i--) {
+      const m = meteors[i];
+      m.life++;
+
+      if (!m.fading && m.life < m.maxLife * 0.3) {
+        m.alpha += (m.alphaTarget - m.alpha) * 0.02;
+      } else if (m.life > m.maxLife * 0.6 && !m.fading) {
+        m.fading = true;
+      }
+
+      if (m.fading) {
+        m.alpha -= 0.0008;
+      }
+
+      if (m.alpha <= 0 || m.life >= m.maxLife) {
+        meteors.splice(i, 1);
+        continue;
+      }
+
+      m.x += Math.cos(m.angle) * m.speed;
+      m.y += Math.sin(m.angle) * m.speed;
+
+      const endX = m.x - Math.cos(m.angle) * m.len;
+      const endY = m.y - Math.sin(m.angle) * m.len;
+      const grad = ctx.createLinearGradient(m.x, m.y, endX, endY);
+      grad.addColorStop(0, `rgba(210,200,230,${m.alpha})`);
+      grad.addColorStop(1, 'rgba(210,200,230,0)');
+
+      ctx.beginPath();
+      ctx.moveTo(m.x, m.y);
+      ctx.lineTo(endX, endY);
+      ctx.strokeStyle = grad;
+      ctx.lineWidth = 1;
+      ctx.stroke();
+
+      // 头部微光
+      ctx.beginPath();
+      ctx.arc(m.x, m.y, 1.2, 0, Math.PI * 2);
+      ctx.fillStyle = `rgba(220,210,240,${m.alpha * 1.5})`;
+      ctx.fill();
+    }
+
+    requestAnimationFrame(animate);
+  }
+  animate();
+
+  // ==========================================
+  //  表单逻辑（原封不动）
+  // ==========================================
+  let currentStep = 1;
+  const totalSteps = 6;
+
+  function enterGate() {
+    document.getElementById('gate').classList.add('hidden');
+    document.body.classList.add('entered');
+    updateProgress();
+  }
+
+  function showStep(n) {
+    document.querySelectorAll('.step').forEach(s => s.classList.remove('active'));
+    const target = document.getElementById('step' + (n === 'Summary' ? 'Summary' : n));
+    if (target) target.classList.add('active');
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+
+  function nextStep(n) {
+    currentStep = n;
+    showStep(n);
+    updateProgress();
+  }
+
+  function prevStep(n) {
+    currentStep = n;
+    showStep(n);
+    updateProgress();
+  }
+
+  function updateProgress() {
+    const pct = Math.round((currentStep / totalSteps) * 100);
+    document.getElementById('progressFill').style.width = pct + '%';
+    document.getElementById('progressLabel').textContent = '第 ' + currentStep + ' 步 / 共 ' + totalSteps + ' 步';
+  }
+
+  function selectRadio(el, groupId) {
+    document.querySelectorAll('#' + groupId + ' .radio-option').forEach(o => o.classList.remove('selected'));
+    el.classList.add('selected');
+  }
+
+  function toggleCheck(el) {
+    el.classList.toggle('checked');
+  }
+
+  function val(id) { return document.getElementById(id)?.value || ''; }
+  function radioVal(groupId) {
+    const sel = document.querySelector('#' + groupId + ' .radio-option.selected input');
+    return sel ? sel.value : '';
+  }
+  function checkedVals(groupId) {
+    return Array.from(document.querySelectorAll('#' + groupId + ' .checked')).map(e => e.textContent).join('、');
+  }
+
+  function showSummary() {
+    const s = [];
+    s.push('━━━━━━━━━━━━━━━━━━━━');
+    s.push('　林白 · 故事采集');
+    s.push('　' + val('q1_nickname') + ' 的平行人生');
+    s.push('━━━━━━━━━━━━━━━━━━━━');
+    s.push('');
+    s.push('【第一部 · 你是谁】');
+    s.push('昵称：' + val('q1_nickname'));
+    s.push('年龄：' + val('q1_age'));
+    s.push('性别：' + val('q1_gender'));
+    s.push('');
+    s.push('【第二部 · 那个岔路口】');
+    s.push('时间：' + val('q2_time'));
+    s.push('选择：' + val('q2_choice'));
+    s.push('选了什么：' + val('q2_chosen'));
+    s.push('没选什么：' + val('q2_unchosen'));
+    s.push('为什么没选：' + val('q2_why'));
+    s.push('');
+    s.push('【第三部 · 平行世界的你】');
+    s.push('那个世界：' + val('q3_life'));
+    s.push('性格变化：' + val('q3_personality'));
+    s.push('重要的人：' + val('q3_person'));
+    s.push('');
+    s.push('【第四部 · 故事的颜色】');
+    s.push('结局偏好：' + radioVal('q4_ending'));
+    s.push('故事基调：' + checkedVals('q4_tone'));
+    s.push('');
+    s.push('【第五部 · 只有你知道的事】');
+    s.push('那个地方：' + val('q5_place'));
+    s.push('那句没说出口的话：' + val('q5_words'));
+    s.push('当时的细节：' + val('q5_details'));
+    s.push('那个物品：' + val('q5_object'));
+    s.push('额外想放的：' + val('q5_extra'));
+    s.push('');
+    s.push('【第六部 · 最后】');
+    s.push('平行时空的来信第一句：' + val('q6_letter'));
+    s.push('最后一页的心情：' + val('q6_feeling'));
+    s.push('还想说的：' + val('q6_anything'));
+    s.push('');
+    s.push('━━━━━━━━━━━━━━━━━━━━');
+    s.push('　以上。交给林白。');
+    s.push('　24小时内你会收到大纲确认。');
+    s.push('　3天后，你的书会出现在你面前。');
+    s.push('━━━━━━━━━━━━━━━━━━━━');
+
+    document.getElementById('summaryContent').innerHTML = s.join('<br>');
+    showStep('Summary');
+  }
+
+  function copySummary() {
+    const text = document.getElementById('summaryContent').innerText;
+    navigator.clipboard.writeText(text).then(() => {
+      document.getElementById('copyDone').style.display = 'block';
+      document.getElementById('btnCopy').textContent = '✓ 已复制';
+    }).catch(() => {
+      const range = document.createRange();
+      range.selectNode(document.getElementById('summaryContent'));
+      window.getSelection().removeAllRanges();
+      window.getSelection().addRange(range);
+      document.getElementById('copyDone').style.display = 'block';
+    });
+  }
+</script>
+
+</body>
+</html>
